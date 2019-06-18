@@ -424,7 +424,7 @@ def AmericanCounter(Band, TotalBeats=16, SameStart = False):
 def QuickMarchReturn(Band):
     """
     Walk in a straight line, with different distance depending on the row
-    This returns the band to its original diminution, and resets StartEqual.
+    This returns the band to its original distribution, and resets StartEqual.
     This is for example needed to make a turn on the spot, after a bend command has been given.
 
     Input:
