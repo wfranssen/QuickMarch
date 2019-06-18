@@ -8,7 +8,7 @@ import QuickMarch as qm
 #in the library. As we require unique commands for every column in this case, 
 #we cannot make this with the higher level commands.
 
-def Star(Band,Time,MarchTime):
+def Star(Band,MarchTime):
     AngleList = [-90,-35,35,90] #List of angles to bend when making the star
     BackAngleList = [-180,-180,180,180] #List of angles for the return
 
@@ -20,10 +20,10 @@ def Star(Band,Time,MarchTime):
         Angle = AngleList[Column]
         BackAngle = BackAngleList[Column]
         if Player.Row > 0: #Let rows behind the first move straight to the start of the star
-            qm.QuickMarchBase(Player,Time,Player.Row * Band.Sep[0] / Player.Stride)
+            qm.QuickMarchBase(Player,Band.LastCTime,Player.Row * Band.Sep[0] / Player.Stride)
         
         #Turn1 (radius very small, but must be non-zero)
-        tmpTime = qm.BendBase(Player,1e-6,Time,Angle,TotalBeats = 0)
+        tmpTime = qm.BendBase(Player,1e-6,Band.LastCTime,Angle,TotalBeats = 0)
 
         #Straight1
         tmpTime = qm.QuickMarchBase(Player,tmpTime,MarchTime)
@@ -36,7 +36,7 @@ def Star(Band,Time,MarchTime):
 
         #Turn2 (radius very small, but must be non-zero)
         tmpTime = qm.BendBase(Player,1e-6,tmpTime,-Angle,TotalBeats = 0)
-    return tmpTime
+    Band.LastCTime = tmpTime #Set the time of the last position of the band
 
 
 #----------Create Band---------------
@@ -44,9 +44,9 @@ Size = [8,4]
 Band = qm.BandCls(Size,Angle = 90)
 
 #----------Commands------------------
-Time = qm.QuickMarch(Band,0,2)
-Time = Star(Band,Time,16)
-Time = qm.QuickMarch(Band,Time,100)
+qm.QuickMarch(Band,2)
+Star(Band,16)
+qm.QuickMarch(Band,100)
 
 #----------Plot----------------------
 bpm = 120

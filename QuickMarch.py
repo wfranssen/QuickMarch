@@ -101,6 +101,7 @@ class BandCls:
         self.Pos = Pos
         self.Angle = Angle
         self.Time = 0 #Time in beats since start
+        self.LastCTime = 0 #Time of last command/path definition
         
         for Row in range(self.Rows):
             for Column in range(self.Columns):
@@ -316,7 +317,7 @@ def BendBase(Player,Radius,Time,Angle,TotalBeats = 2):
     return endTime
 
 
-def QuickMarch(Band,Time,TotalBeats):
+def QuickMarch(Band,TotalBeats):
     """
     Walk in a straight line for "TotalBeats" time.
 
@@ -325,10 +326,10 @@ def QuickMarch(Band,Time,TotalBeats):
     TotalBeats: float of the total number of beats the walk should last
     """
     for Player in Band.BandList:
-        QuickMarchBase(Player,Time,TotalBeats)
-    return Time + TotalBeats
+        QuickMarchBase(Player,Band.LastCTime,TotalBeats)
+    Band.LastCTime += TotalBeats
 
-def Bend(Band,Time,Angle,TotalBeats=16, SameStart = False):
+def Bend(Band,Angle,TotalBeats=16, SameStart = False):
     """
     Make a bend. Radii are based on the columns of the players. The
     innermost column has radius of 0, while the other columns remain
@@ -336,7 +337,6 @@ def Bend(Band,Time,Angle,TotalBeats=16, SameStart = False):
 
     Input:
     Band: the BandCls object
-    Time: the start time of the bend
     Angle: the angle of the bend (positive for right, negative for left)
     TotalBeats (optional = 16): float of the total number of beats the walk should last
     SameStart (optional = False): bool, specifies if the path before this bend end
@@ -344,18 +344,18 @@ def Bend(Band,Time,Angle,TotalBeats=16, SameStart = False):
     """
     for Player in Band.BandList:
         if Player.Row > 0 and not SameStart:
-            QuickMarchBase(Player,Time,Player.Row * Band.Sep[0] / Player.Stride)
+            QuickMarchBase(Player,Band.LastCTime,Player.Row * Band.Sep[0] / Player.Stride)
         if Angle < 0:
             Radius = Player.Column * Band.Sep[1] 
         else:
             Radius = (Band.Columns - Player.Column - 1) * Band.Sep[1]
         if Radius == 0.0:
             Radius = 1e-6
-        BendBase(Player,Radius,Time,Angle,TotalBeats)
-    return Time + TotalBeats
+        BendBase(Player,Radius,Band.LastCTime,Angle,TotalBeats)
+    Band.LastCTime += TotalBeats
 
 
-def Turn(Band,Time,Angle,TotalBeats = 2):
+def Turn(Band,Angle,TotalBeats = 2):
     """
     Turn Band in place
 
@@ -366,10 +366,10 @@ def Turn(Band,Time,Angle,TotalBeats = 2):
     TotalBeats (optional = 2): number of beats of the movement
     """
     for Player in Band.BandList:
-        BendBase(Player,1e-6,Time,Angle,TotalBeats)
-    return Time + TotalBeats
+        BendBase(Player,1e-6,Band.LastCTime,Angle,TotalBeats)
+    Band.LastCTime += TotalBeats
 
-def EnglishCounter(Band,Time, SameStart = False):
+def EnglishCounter(Band,SameStart = False):
     """
     Perform an english counter
 
@@ -383,14 +383,14 @@ def EnglishCounter(Band,Time, SameStart = False):
     for Player in Band.BandList:
         BendTime = (Radius * math.pi) / Player.Stride
         if Player.Row > 0 and not SameStart:
-            QuickMarchBase(Player, Time, Player.Row * Band.Sep[0] / Player.Stride)
-        BendBase(Player,Radius,Time,180,BendTime)
+            QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.Stride)
+        BendBase(Player,Radius, Band.LastCTime,180,BendTime)
         #Switch left-right
         Player.Column = Band.Columns - Player.Column - 1
-    return Time + BendTime
+    Band.LastCTime += BendTime
 
 
-def AmericanCounter(Band,Time,TotalBeats=16, SameStart = False):
+def AmericanCounter(Band, TotalBeats=16, SameStart = False):
     """
     Perform an american counter
 
@@ -404,7 +404,7 @@ def AmericanCounter(Band,Time,TotalBeats=16, SameStart = False):
     Centre = math.ceil(Band.Columns/2) - 1
     for Player in Band.BandList:
         if Player.Row > 0 and not SameStart:
-            QuickMarchBase(Player, Time, Player.Row * Band.Sep[0] / Player.Stride)
+            QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.Stride)
         Column = Player.Column
         if Column <= Centre:
             Angle = 180
@@ -414,6 +414,6 @@ def AmericanCounter(Band,Time,TotalBeats=16, SameStart = False):
             Radius = abs(Column - Centre) * 2 - 0.5
         Radius *= Band.Sep[1] / 2
 
-        BendBase(Player,Radius,Time,Angle,TotalBeats)
-    return Time + TotalBeats
+        BendBase(Player,Radius,Band.LastCTime,Angle,TotalBeats)
+    Band.LastCTime += TotalBeats
 
