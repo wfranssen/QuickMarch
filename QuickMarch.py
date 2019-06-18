@@ -102,6 +102,7 @@ class BandCls:
         self.Angle = Angle
         self.Time = 0 #Time in beats since start
         self.LastCTime = 0 #Time of last command/path definition
+        self.StartEqual = False #Bool that holds of the path of the players are defined to the same start
         
         for Row in range(self.Rows):
             for Column in range(self.Columns):
@@ -329,7 +330,7 @@ def QuickMarch(Band,TotalBeats):
         QuickMarchBase(Player,Band.LastCTime,TotalBeats)
     Band.LastCTime += TotalBeats
 
-def Bend(Band,Angle,TotalBeats=16, SameStart = False):
+def Bend(Band,Angle,TotalBeats=16):
     """
     Make a bend. Radii are based on the columns of the players. The
     innermost column has radius of 0, while the other columns remain
@@ -343,7 +344,7 @@ def Bend(Band,Angle,TotalBeats=16, SameStart = False):
     at the same place or not.
     """
     for Player in Band.BandList:
-        if Player.Row > 0 and not SameStart:
+        if Player.Row > 0 and not Band.StartEqual:
             QuickMarchBase(Player,Band.LastCTime,Player.Row * Band.Sep[0] / Player.Stride)
         if Angle < 0:
             Radius = Player.Column * Band.Sep[1] 
@@ -352,6 +353,7 @@ def Bend(Band,Angle,TotalBeats=16, SameStart = False):
         if Radius == 0.0:
             Radius = 1e-6
         BendBase(Player,Radius,Band.LastCTime,Angle,TotalBeats)
+    Band.StartEqual = True #All players have now been defined up to the same position
     Band.LastCTime += TotalBeats
 
 
@@ -369,7 +371,7 @@ def Turn(Band,Angle,TotalBeats = 2):
         BendBase(Player,1e-6,Band.LastCTime,Angle,TotalBeats)
     Band.LastCTime += TotalBeats
 
-def EnglishCounter(Band,SameStart = False):
+def EnglishCounter(Band):
     """
     Perform an english counter
 
@@ -382,11 +384,12 @@ def EnglishCounter(Band,SameStart = False):
     Radius = 0.25 * Band.Sep[1]
     for Player in Band.BandList:
         BendTime = (Radius * math.pi) / Player.Stride
-        if Player.Row > 0 and not SameStart:
+        if Player.Row > 0 and not Band.StartEqual:
             QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.Stride)
         BendBase(Player,Radius, Band.LastCTime,180,BendTime)
         #Switch left-right
         Player.Column = Band.Columns - Player.Column - 1
+    Band.StartEqual = True #All players have now been defined up to the same position
     Band.LastCTime += BendTime
 
 
@@ -403,7 +406,7 @@ def AmericanCounter(Band, TotalBeats=16, SameStart = False):
     """
     Centre = math.ceil(Band.Columns/2) - 1
     for Player in Band.BandList:
-        if Player.Row > 0 and not SameStart:
+        if Player.Row > 0 and not Band.StartEqual:
             QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.Stride)
         Column = Player.Column
         if Column <= Centre:
@@ -415,5 +418,27 @@ def AmericanCounter(Band, TotalBeats=16, SameStart = False):
         Radius *= Band.Sep[1] / 2
 
         BendBase(Player,Radius,Band.LastCTime,Angle,TotalBeats)
+    Band.StartEqual = True #All players have now been defined up to the same position
     Band.LastCTime += TotalBeats
+
+def QuickMarchReturn(Band):
+    """
+    Walk in a straight line, with different distance depending on the row
+    This returns the band to its original diminution, and resets StartEqual.
+    This is for example needed to make a turn on the spot, after a bend command has been given.
+
+    Input:
+    Band: the BandCls object
+    """
+    if not Band.StartEqual: #If False, we do not need this command
+        return
+    TotalRows = Band.Rows
+    timeVar = 0
+    for Player in Band.BandList:
+        WalkTime = (TotalRows - Player.Row - 1) * Band.Sep[0] / Player.Stride
+        timeVar = max(timeVar,WalkTime)
+        QuickMarchBase(Player, Band.LastCTime, WalkTime)
+
+    Band.LastCTime += timeVar
+    Band.StartEqual = False #Band restored to start definition
 

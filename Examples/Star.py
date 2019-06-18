@@ -9,6 +9,12 @@ import QuickMarch as qm
 #we cannot make this with the higher level commands.
 
 def Star(Band,MarchTime):
+    """
+    Defines a star like move. Only defined for a 4 column band (this could be generalized).
+
+    Input:
+    MarchTime: time that should be moved in a straight line after the split
+    """
     AngleList = [-90,-35,35,90] #List of angles to bend when making the star
     BackAngleList = [-180,-180,180,180] #List of angles for the return
 
@@ -19,23 +25,20 @@ def Star(Band,MarchTime):
         Column = Player.Column
         Angle = AngleList[Column]
         BackAngle = BackAngleList[Column]
-        if Player.Row > 0: #Let rows behind the first move straight to the start of the star
+        if Player.Row > 0 and not Band.StartEqual: #Let rows behind the first move straight to the start of the star
             qm.QuickMarchBase(Player,Band.LastCTime,Player.Row * Band.Sep[0] / Player.Stride)
         
         #Turn1 (radius very small, but must be non-zero)
         tmpTime = qm.BendBase(Player,1e-6,Band.LastCTime,Angle,TotalBeats = 0)
-
         #Straight1
         tmpTime = qm.QuickMarchBase(Player,tmpTime,MarchTime)
-
         #Bend
         tmpTime = qm.BendBase(Player,0.2 * Band.Sep[1],tmpTime,BackAngle,TotalBeats = BendTime)
-
         #Straight2
         tmpTime = qm.QuickMarchBase(Player,tmpTime,MarchTime)
-
         #Turn2 (radius very small, but must be non-zero)
         tmpTime = qm.BendBase(Player,1e-6,tmpTime,-Angle,TotalBeats = 0)
+    Band.StartEqual = True #All players have now been defined up to the same position
     Band.LastCTime = tmpTime #Set the time of the last position of the band
 
 

@@ -10,7 +10,7 @@ Band = qm.BandCls(Size,Angle = 90)
 #----------Commands-------------------
 qm.QuickMarch(Band,2)
 qm.Bend(Band,90)
-qm.Bend(Band,-90,SameStart = True)
+qm.Bend(Band,-90)
 qm.QuickMarch(Band,100)
 
 #----------Plot----------------------
