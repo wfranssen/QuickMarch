@@ -68,7 +68,7 @@ class PlayerCls:
         self.Row = Row
         self.Column = Column
         self.Path = [[None,None,0,self.Pos,self.Angle]]
-        self.CumDist = [0] #The cumilative distance (i.e. the distance at the end of each path)
+        self.CumDist = [0] #The cumulative distance (i.e. the distance at the end of each path)
         self.Commands = [] #Holds the commands. Each command is a list with [time, stridelength]
         #Symbol definition in polar coordinates [r,angle]
         self.Symbol = [[0, 0], [0.3, 135], [0.4, 0], [0.3,-135]]
@@ -76,9 +76,24 @@ class PlayerCls:
 
 class BandCls:
     def __init__(self,Size,Sep = [1.6,1.6],Stride = 0.8,Pos = [0,0],Angle = 0):
-        #Size: [Rows,Colums]
-        #Sep: [Row,Column] distance in metres
-        #Stride: stride length in metres
+        """
+        Band class object. Holds all the individual players, as well as the current
+        time.
+
+        Inputs:
+        Size: size of the band, in [Rows,Colums]
+        Sep (optional = [1.6,1.6]): distance between rows and columns [Row,Column]
+        Stride (optional = 0.8): stride length
+        Pos (optional [0,0]): start position of row 1, centre position [x,y]
+        Angle (optional = 0): start angle of all players
+
+
+        Routines:
+        advanceTime: Advance the time of the band, calculating all new positions
+        and angles of all players.
+
+        Plot: Makes a plot of the band, and saves to a file.
+        """
         self.Rows = Size[0]
         self.Columns = Size[1]
         self.BandList = []
@@ -125,17 +140,16 @@ class BandCls:
             
             #Calc the new position
             ActivePaths = [a for a in Player.CumDist if a > Dist]
-            if len(ActivePaths) == 0: #Stop if there is no path at this distance
-                break
-            Path = ActivePaths[0]
-            Index = Player.CumDist.index(Path)
+            if len(ActivePaths) > 0: #Stop if there is no path at this distance
+                Path = ActivePaths[0]
+                Index = Player.CumDist.index(Path)
 
-            EffDist = Dist
-            if Index > 0: #Get start offset of current path
-                EffDist -= Player.CumDist[Index - 1]
-            Player.Pos = Player.Path[Index][0](EffDist)
-            Player.Angle = Player.Path[Index][1](EffDist)
-            Player.Distance = Dist
+                EffDist = Dist
+                if Index > 0: #Get start offset of current path
+                    EffDist -= Player.CumDist[Index - 1]
+                Player.Pos = Player.Path[Index][0](EffDist)
+                Player.Angle = Player.Path[Index][1](EffDist)
+                Player.Distance = Dist
             
         self.Time = NewTime #Update the time to the new value
         
@@ -182,7 +196,7 @@ def makeOutput(Band,Folder,Steps,dt):
     dt: time in beats between each frame
     """
     if int(Steps) < 1:
-        raise ValueError('Number of frames should be more than 0')
+        raise ValueError('"Steps" should be more than 0')
 
     if not os.path.exists(Folder):
         os.mkdir(Folder)
