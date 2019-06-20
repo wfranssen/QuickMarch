@@ -53,18 +53,33 @@ def vecSum(a,b):
     """
     return [a[0] + b[0], a[1] + b[1]]
 
+
+#AFter this follow the Player and Band class definitions. The goals of the software is to define the
+#position and angle of a player at any given time. We do this by recalculating a given time-point to
+#a distance that has been walked from t=0. Every Player has a series of paths which define the
+#position and orientation of the player at a certain distance from the start. Moreover, there are
+#"Commands" which hold speed variation commands given at specific time points. When the position of
+#a Player is requested, the Players class searches for the right path definition in which the given
+#"Distance" falls, inputs this Distance to that path function, and returns the position and angles.
  
 class PlayerCls:
     """
     The player class. This holds the row and column position of a player, 
     as well as the step size (i.e. stride). Additional input is the start position
     ([x,y]) and start angle.
+
+    Inputs:
+    startPos: [x,y], start position
+    startAngle: float, starting angle of the player
+    Stride: float, default stride length (move speed)
+    Row: int, row number
+    Column: Int, column number
     """
     def __init__(self,startPos,startAngle, Stride, Row, Column):
         self.Pos = startPos
         self.Distance = 0
         self.Angle = startAngle
-        self.Stride = Stride
+        self.StartStride = Stride
         self.Row = Row
         self.Column = Column
         self.Path = [[None,None,0,self.Pos,self.Angle]]
@@ -74,6 +89,39 @@ class PlayerCls:
         self.Symbol = [[0, 0], [0.3, 135], [0.4, 0], [0.3,-135]]
         self.Colour = 'b' #Symbol colour
 
+    def setDist(self,Dist):
+        #Calc the new position
+        ActivePaths = [a for a in self.CumDist if a > Dist]
+        if len(ActivePaths) > 0: #Stop if there is no path at this distance
+            Path = ActivePaths[0]
+            Index = self.CumDist.index(Path)
+
+            EffDist = Dist
+            if Index > 0: #Get start offset of current path
+                EffDist -= self.CumDist[Index - 1]
+            self.Pos = self.Path[Index][0](EffDist)
+            self.Angle = self.Path[Index][1](EffDist)
+            self.Distance = Dist  
+
+    def getDist(self,Time):
+        #Get the player distance for a given time
+        Stride = self.StartStride
+        Dist = 0
+        CurrentTime = 0
+
+        Commands = [x for x in self.Commands if x[0] <= Time] #Get all commands active up
+        #to NewTime
+
+        for Command in Commands: 
+            Dist += (Command[0] - CurrentTime ) * Stride #Walk until command time
+            Stride = Command[1] #Set new walk speed (Stride length)
+            CurrentTime = Command[0] #Set new time
+
+        #If commands finished, continue with defined Stride until NewTime
+        Dist += (Time - CurrentTime) * Stride
+        return Dist
+
+
 class BandCls:
     def __init__(self,Size,Sep = [1.6,1.6],Stride = 0.8,Pos = [0,0],Angle = 0):
         """
@@ -81,7 +129,7 @@ class BandCls:
         time.
 
         Inputs:
-        Size: size of the band, in [Rows,Colums]
+        Size: size of the band, in [Rows,Columns]
         Sep (optional = [1.6,1.6]): distance between rows and columns [Row,Column]
         Stride (optional = 0.8): stride length
         Pos (optional [0,0]): start position of row 1, centre position [x,y]
@@ -89,7 +137,7 @@ class BandCls:
 
 
         Routines:
-        advanceTime: Advance the time of the band, calculating all new positions
+        setTime: Set the time of the band, calculating all new positions
         and angles of all players.
 
         Plot: Makes a plot of the band, and saves to a file.
@@ -111,49 +159,20 @@ class BandCls:
                 x = sind(Angle) * Cpos - cosd(Angle) * Rpos
                 y = - cosd(Angle) * Cpos - sind(Angle) * Rpos
                 self.BandList.append(PlayerCls([x,y],self.Angle,Stride,Row,Column))
-                
-    def advanceTime(self,Beats):
+
+    def setTime(self,NewTime):
         """
-        Advance the time of the band. This updates all player positions and orientations
+        Set the time of the band. This updates all player positions and orientations
 
         Input:
-        Beats: the number of beats that the time should be advanced
+        NewTime: the new time of the band
         """
 
-        OldTime = self.Time
-        NewTime = OldTime + Beats
         for Player in self.BandList:
-            Dist = Player.Distance
-            CurrentTime = self.Time
-
-            ActiveCommands = [x[0] for x in Player.Commands if x[0] >= OldTime]
-            CommandsIndex = [x for x in range(len(Player.Commands)) if Player.Commands[x][0]  >= OldTime]
-                    
-            while CurrentTime < NewTime: #Continue increasing dist until final time is reached
-                if len(ActiveCommands) > 0 and NewTime >= ActiveCommands[0]:
-                    Dist += (ActiveCommands[0] - CurrentTime ) * Player.Stride
-                    Player.Stride = Player.Commands[CommandsIndex[0]][1]
-                    CurrentTime += ActiveCommands[0] - CurrentTime
-                    ActiveCommands.pop(0) #Remove used command
-                    CommandsIndex.pop(0) #Remove used command
-                else:
-                    Dist += (NewTime - CurrentTime) * Player.Stride
-                    CurrentTime = NewTime
+            Dist = Player.getDist(NewTime)
+            Player.setDist(Dist)
             
-            #Calc the new position
-            ActivePaths = [a for a in Player.CumDist if a > Dist]
-            if len(ActivePaths) > 0: #Stop if there is no path at this distance
-                Path = ActivePaths[0]
-                Index = Player.CumDist.index(Path)
-
-                EffDist = Dist
-                if Index > 0: #Get start offset of current path
-                    EffDist -= Player.CumDist[Index - 1]
-                Player.Pos = Player.Path[Index][0](EffDist)
-                Player.Angle = Player.Path[Index][1](EffDist)
-                Player.Distance = Dist
-            
-        self.Time = NewTime #Update the time to the new value
+        self.Time = NewTime #Update the band time to the new value
         
     def plot(self,Path,Fig = None,ax = None, limits = [[-20,20],[-60,65]], dpi = 150):
         """
@@ -209,8 +228,10 @@ def makeOutput(Band,Folder,Steps,dt,PlotLimits = [[-20,20],[-60,65]], dpi = 150)
         os.remove(os.path.join(Folder, f))
 
     Fig,ax = Band.plot(Folder + '1.png', limits = PlotLimits, dpi=dpi)
+    Time = 0
     for step in range(int(Steps) - 1):
-        Band.advanceTime(dt)
+        Time += dt
+        Band.setTime(Time)
         Band.plot(Folder + str(step + 2) + '.png', Fig, ax, limits = PlotLimits, dpi=dpi)
     plt.close()
 
@@ -274,7 +295,7 @@ def QuickMarchBase(Player,Time,TotalBeats):
     Base function for a straight path. It adds all required path and commands
     to the "Player" for a path of duration "TotalBeats". Stride length is not changed.
     """
-    pathdist = TotalBeats * Player.Stride
+    pathdist = TotalBeats * Player.StartStride
 
     startpos = Player.Path[-1][3] #start pos of previous path
     startangle = Player.Path[-1][4] #start angle of previous path
@@ -314,7 +335,7 @@ def BendBase(Player,Radius,Time,Angle,TotalBeats = 2):
     endTime = Time + TotalBeats
     if TotalBeats > 0: #If no time, no speed changes are needed
         Player.Commands.append([Time ,PathDist / TotalBeats])
-        Player.Commands.append([endTime, Player.Stride]) #Reset stride
+        Player.Commands.append([endTime, Player.StartStride]) #Reset stride
     return endTime
 
 
@@ -345,7 +366,7 @@ def Bend(Band,Angle,TotalBeats=16):
     """
     for Player in Band.BandList:
         if Player.Row > 0 and not Band.StartEqual:
-            QuickMarchBase(Player,Band.LastCTime,Player.Row * Band.Sep[0] / Player.Stride)
+            QuickMarchBase(Player,Band.LastCTime,Player.Row * Band.Sep[0] / Player.StartStride)
         if Angle < 0:
             Radius = Player.Column * Band.Sep[1] 
         else:
@@ -383,9 +404,9 @@ def EnglishCounter(Band):
     """
     Radius = 0.25 * Band.Sep[1]
     for Player in Band.BandList:
-        BendTime = (Radius * math.pi) / Player.Stride
+        BendTime = (Radius * math.pi) / Player.StartStride
         if Player.Row > 0 and not Band.StartEqual:
-            QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.Stride)
+            QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.StartStride)
         BendBase(Player,Radius, Band.LastCTime,180,BendTime)
         #Switch left-right
         Player.Column = Band.Columns - Player.Column - 1
@@ -407,7 +428,7 @@ def AmericanCounter(Band, TotalBeats=16, SameStart = False):
     Centre = math.ceil(Band.Columns/2) - 1
     for Player in Band.BandList:
         if Player.Row > 0 and not Band.StartEqual:
-            QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.Stride)
+            QuickMarchBase(Player, Band.LastCTime, Player.Row * Band.Sep[0] / Player.StartStride)
         Column = Player.Column
         if Column <= Centre:
             Angle = 180
@@ -435,7 +456,7 @@ def QuickMarchReturn(Band):
     TotalRows = Band.Rows
     timeVar = 0
     for Player in Band.BandList:
-        WalkTime = (TotalRows - Player.Row - 1) * Band.Sep[0] / Player.Stride
+        WalkTime = (TotalRows - Player.Row - 1) * Band.Sep[0] / Player.StartStride
         timeVar = max(timeVar,WalkTime)
         QuickMarchBase(Player, Band.LastCTime, WalkTime)
 
